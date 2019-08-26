@@ -31,6 +31,7 @@ import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -43,10 +44,11 @@ import org.slf4j.LoggerFactory;
  * running clients.
  */
 public class Client {
-  public static final String TOPIC = "cloud-pubsub-loadtest";
+  private static final Logger log = LoggerFactory.getLogger(Client.class);
+
+  public static final String TOPIC = "cloud-pubsub-loadtest-" + UUID.randomUUID().toString();
   public static final String SUBSCRIPTION = "loadtest-subscriber";
   public static final String RESOURCE_DIR = "target/classes/gce";
-  private static final Logger log = LoggerFactory.getLogger(Client.class);
   private static final int DEFAULT_PORT = 5000;
 
   public static final int PUBLISHER_CPU_SCALING = 5;
@@ -168,10 +170,14 @@ public class Client {
       requestBuilder.setPublisherOptions(publisherOptions);
       requestBuilder.setCpuScaling(PUBLISHER_CPU_SCALING);
     } else {
-      requestBuilder.setCpuScaling(params.getTestParameters().subscriberCpuScaling());
-      if (params.getClientType().isCps()) {
-        requestBuilder.setPubsubOptions(PubsubOptions.newBuilder().setSubscription(SUBSCRIPTION));
+      SubscriberOptions.Builder subscriberOptions =  SubscriberOptions.newBuilder();
+      log.error("Number of ordering keys per publisher: {}", params.getTestParameters().numOrderingKeysPerPublisherThread() > 0);
+      if (params.getTestParameters().numOrderingKeysPerPublisherThread() > 0) {
+        subscriberOptions.addRequiredProperties(SubscriberProperties.IN_ORDER);
+        this.invariantTracker.addSubscriberInvariant(SubscriberProperties.IN_ORDER);
       }
+      requestBuilder.setCpuScaling(params.getTestParameters().cpuScaling());
+      requestBuilder.setSubscriberOptions(subscriberOptions);
     }
     if (params.getClientType().isKafka()) {
       requestBuilder.setKafkaOptions(
@@ -181,6 +187,13 @@ public class Client {
               .setZookeeperIpAddress(zookeeperIpAddress)
               .setReplicationFactor(replicationFactor)
               .setPartitions(partitions));
+    }
+    if (params.getClientType().isCps()) {
+      requestBuilder.setPubsubOptions(
+              PubsubOptions.newBuilder()
+                      .setSubscription(SUBSCRIPTION)
+                      .setApiRootUrl(params.getTestParameters().apiRootUrl())
+      );
     }
 
     StartRequest request = requestBuilder.build();

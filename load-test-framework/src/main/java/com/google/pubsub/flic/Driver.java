@@ -209,17 +209,20 @@ public class Driver {
       if (controller == null) {
         System.exit(1);
       }
-
+      Runtime.getRuntime()
+          .addShutdownHook(
+              new Thread(
+                  ()-> {
+                    if (controller != null) {
+                      log.info("Stopping test controller because of JVM shutdown");
+                      controller.stop();
+                    }
+                  }));
       return runTest();
     } catch (Throwable t) {
       log.error("An error occurred...", t);
-      controller.stop();
       System.exit(1);
       return null;
-    } finally {
-      if (controller != null) {
-        controller.stop();
-      }
     }
   }
 

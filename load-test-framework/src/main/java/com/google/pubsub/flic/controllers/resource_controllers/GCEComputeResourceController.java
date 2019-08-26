@@ -252,6 +252,7 @@ public class GCEComputeResourceController extends ComputeResourceController {
 
       if (response != null) {
         if (response.getManagedInstances() != null) {
+          log.warn("Received response: {}", response);
           if (response.getManagedInstances().stream()
               .allMatch(i -> "RUNNING".equals(i.getInstanceStatus()))) {
             break;

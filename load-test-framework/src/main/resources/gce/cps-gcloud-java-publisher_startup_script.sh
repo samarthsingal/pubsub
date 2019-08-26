@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Export logs to stackdriver
+exec 1> >(logger -s -t $(basename $0)) 2>&1
+curl -sSO https://dl.google.com/cloudagents/install-logging-agent.sh
+sudo bash install-logging-agent.sh
+
 #######################################
 # Query GCE for a provided metadata field.
 # See https://developers.google.com/compute/docs/metadata

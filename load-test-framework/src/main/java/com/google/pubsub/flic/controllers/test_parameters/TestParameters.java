@@ -21,6 +21,8 @@ import com.google.protobuf.Duration;
 import com.google.protobuf.util.Durations;
 import java.util.Optional;
 
+import static com.google.api.services.pubsub.Pubsub.DEFAULT_ROOT_URL;
+
 @AutoValue
 public abstract class TestParameters {
   public abstract int messageSize();
@@ -47,6 +49,7 @@ public abstract class TestParameters {
 
   public static Builder builder() {
     return new AutoValue_TestParameters.Builder()
+        .setApiRootUrl(DEFAULT_ROOT_URL)
         .setMessageSize(1000)
         .setPublishBatchDuration(Durations.fromMillis(50))
         .setPublishBatchSize(1000)
