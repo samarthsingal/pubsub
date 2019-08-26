@@ -23,6 +23,7 @@ import com.beust.jcommander.converters.EnumConverter;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.util.Timestamps;
+import com.google.pubsub.flic.common.InvariantTracker;
 import com.google.pubsub.flic.common.KafkaFlags;
 import com.google.pubsub.flic.common.LatencyTracker;
 import com.google.pubsub.flic.common.LoadtestProto.MessageIdentifier;
@@ -228,7 +229,8 @@ public class Driver {
 
   private Map<ClientType, LatencyTracker> runTest() throws Throwable {
     MessageTracker messageTracker = new MessageTracker();
-    controller.start(messageTracker);
+    InvariantTracker invariantTracker = new InvariantTracker();
+    controller.start(messageTracker, invariantTracker);
     log.info(
         "Will start burn-in time in "
             + ((Timestamps.toMillis(controller.getStartTime()) - System.currentTimeMillis()) / 1000)
@@ -236,11 +238,13 @@ public class Driver {
     // Wait for the load test to finish.
     controller.waitForClients();
     Map<ClientType, LatencyTracker> trackers = controller.getClientLatencyTrackers();
-    Iterable<MessageIdentifier> missing = messageTracker.getMissing();
-    if (missing.iterator().hasNext()) {
-      log.error("Some published messages were not received!\nExamples:");
+    Iterable<MessageIdentifier> missingMessages = messageTracker.getMissing();
+    log.info("Subscriber affinity violations: {}", messageTracker.getOverlappingSubscribers());
+
+    if (missingMessages.iterator().hasNext()) {
+      log.error("n!\nExamples:");
       int missing_count = 0;
-      for (MessageIdentifier identifier : missing) {
+      for (MessageIdentifier identifier : missingMessages) {
         if (missing_count < 5) {
           log.error(
               String.format(
@@ -250,7 +254,10 @@ public class Driver {
       }
       log.error("Missing " + missing_count + " total messages.");
     }
-
+    double duplicateRato = messageTracker.getDuplicateRatio();
+    if (duplicateRato > 0.01) {
+      log.error("High duplicate ratio of {}%", duplicateRato);
+    }
     return trackers;
   }
 

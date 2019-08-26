@@ -33,6 +33,7 @@ public class PubsubResourceController extends ResourceController {
   private final String project;
   private final String topic;
   private final List<String> subscriptions;
+  private final boolean enableOrdering;
   private final Pubsub pubsub;
 
   public PubsubResourceController(
@@ -40,49 +41,55 @@ public class PubsubResourceController extends ResourceController {
       String topic,
       List<String> subscriptions,
       ScheduledExecutorService executor,
+      boolean enableOrdering,
       Pubsub pubsub) {
     super(executor);
     this.project = project;
     this.topic = topic;
     this.subscriptions = subscriptions;
+    this.enableOrdering = enableOrdering;
     this.pubsub = pubsub;
   }
 
   @Override
   protected void startAction() throws Exception {
     try {
+      String topicPath = "projects/" + project + "/topics/" + topic;
       pubsub
           .projects()
           .topics()
-          .create("projects/" + project + "/topics/" + topic, new Topic())
+          .create(topicPath, new Topic())
           .execute();
+      log.info("Created Cloud Pub/Sub topic: {}", topicPath);
     } catch (GoogleJsonResponseException e) {
       if (e.getStatusCode() != HttpStatus.SC_CONFLICT) {
-        log.error("Error creating subscription");
+        log.error("Error creating topic");
         throw e;
       }
       log.info("Topic already exists, reusing.");
     }
-    for (String subscription : subscriptions) {
-      log.error("Creating subscription: " + subscription);
+    for (String subscriptionName : subscriptions) {
+      String susbcriptionPath = "projects/" + project + "/subscriptions/" + subscriptionName;
       try {
         pubsub
             .projects()
             .subscriptions()
-            .delete("projects/" + project + "/subscriptions/" + subscription)
+            .delete(susbcriptionPath)
             .execute();
       } catch (IOException e) {
         log.debug("Error deleting subscription, assuming it has not yet been created.", e);
       }
+      Subscription subscription = new Subscription().setTopic("projects/" + project + "/topics/" + topic)
+          .setAckDeadlineSeconds(10);
+      if (this.enableOrdering) {
+        subscription.set("enableMessageOrdering", this.enableOrdering);
+      }
       pubsub
           .projects()
           .subscriptions()
-          .create(
-              "projects/" + project + "/subscriptions/" + subscription,
-              new Subscription()
-                  .setTopic("projects/" + project + "/topics/" + topic)
-                  .setAckDeadlineSeconds(10))
+          .create(susbcriptionPath, subscription)
           .execute();
+      log.error("Created subscription: {}", pubsub.projects().subscriptions().get(susbcriptionPath).execute());
     }
   }
 

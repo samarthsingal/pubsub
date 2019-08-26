@@ -36,4 +36,15 @@ public class StandardParameters {
           .setLoadtestDuration(Durations.fromSeconds(0))
           .setNumCoresPerWorker(1)
           .build();
+  public static TestParameters ORDERING_THROUGHPUT =
+      TestParameters.builder()
+          .setNumCoresPerWorker(1)
+          .setNumSubscriberWorkers(1)
+          .setNumPublisherWorkers(1)
+          .setCpuScaling(1)
+          .setNumOrderingKeysPerPublisherThread(1)
+          .setPublishRatePerSec(Optional.of(1200))
+          .setApiRootUrl("https://loadtest-pubsub.sandbox.googleapis.com/")
+          .setMessageSize(1000)
+          .build();
 }

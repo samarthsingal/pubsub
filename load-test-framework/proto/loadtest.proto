@@ -63,6 +63,11 @@ message StartRequest {
   // max((numCpus * cpu_scaling), 1) for languages which use thread parallelism.
   // Languages which use process parallelism ignore this setting.
   int32 cpu_scaling = 10;
+
+  // Number of ordering keys to publish across. Each publisher task publishes
+  // for a single ordering key. Can affect thread count.
+  // N.b. Number of threads is max(ordering_keys, num_cpus * cpu_scaling)
+  int32 num_ordering_keys_per_thread = 11;
 }
 
 message StartResponse {
@@ -80,12 +85,24 @@ message PublisherOptions {
   int32 message_size = 4;
 }
 
+
 message SubscriberOptions {
+
+  // Invariants to verify on receipt of message.
+  enum SubscriberProperties {
+    // Messages are received in order of sequence at publisher.
+    IN_ORDER = 0;
+  }
+  // Invariants that should hold as messages are received.
+  repeated SubscriberProperties required_properties = 2;
 }
 
 message PubsubOptions {
   // The Cloud Pub/Sub subscription name
   string subscription = 1;
+
+  // The pubsub URL to use. By default it is https://pubsub.googleapis.com/.
+  string apiRootUrl = 2;
 }
 
 message KafkaOptions {
@@ -109,8 +126,17 @@ message MessageIdentifier {
   // The unique id of the client that published the message.
   int64 publisher_client_id = 1;
 
+  // The unique_id of the client that received the message.
+  string subscriber_client_id = 2;
+
   // Sequence number of the published message with the given publish_client_id.
-  int32 sequence_number = 2;
+  int32 sequence_number = 3;
+
+  // Time at which message was received.
+  google.protobuf.Timestamp received_time = 4;
+
+  // The ordering key passed with the message.
+  string ordering_key = 5;
 }
 
 // A message for kafka which does not support adding metadata to the message.
@@ -122,6 +148,11 @@ message KafkaMessage {
 
 // Request a statistics update.
 message CheckRequest {}
+
+message FailedInvariants {
+  // SubscriberProperties violated.
+  repeated SubscriberOptions.SubscriberProperties failed_subscriber_properties = 1;
+}
 
 message CheckResponse {
   // Histogram of latencies, each one a delta from the previous CheckResponse sent.
@@ -138,6 +169,10 @@ message CheckResponse {
   // MessageIdentifiers of all messages since the last Check.
   repeated MessageIdentifier received_messages = 4;
 
-  // Number of failed messages since the last check.
+  // Number of failed publish attempts since the last check.
   int64 failed = 5;
+
+  // Failed client invariants.
+  FailedInvariants violated_invariants = 6;
+
 }

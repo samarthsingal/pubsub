@@ -22,6 +22,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
+import com.google.pubsub.flic.common.InvariantTracker;
 import com.google.pubsub.flic.common.LatencyTracker;
 import com.google.pubsub.flic.common.MessageTracker;
 import com.google.pubsub.flic.controllers.resource_controllers.ComputeResourceController;
@@ -34,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class ControllerBase implements Controller {
+
   protected static final Logger log = LoggerFactory.getLogger(Controller.class);
   protected final List<Client> clients = new ArrayList<>();
   protected final ScheduledExecutorService executor;
@@ -50,7 +52,8 @@ public abstract class ControllerBase implements Controller {
    * and an Exception will be thrown. It is not guaranteed that we have completed shutting down when
    * this function returns, but it is guaranteed that we are in process.
    *
-   * @param executor the executor that will be used to schedule all environment initialization tasks
+   * @param executor the executor that will be used to schedule all environment initialization
+   * tasks
    */
   public ControllerBase(
       ScheduledExecutorService executor,
@@ -89,7 +92,7 @@ public abstract class ControllerBase implements Controller {
   }
 
   @Override
-  public void start(MessageTracker messageTracker) {
+  public void start(MessageTracker messageTracker, InvariantTracker invariantTracker) {
     // Start all ResourceControllers
     List<ListenableFuture<Void>> controllerFutures = new ArrayList<>();
     for (ResourceController controller : controllers) {
@@ -124,13 +127,16 @@ public abstract class ControllerBase implements Controller {
         Timestamps.add(
             Timestamps.fromMillis(System.currentTimeMillis()), Durations.fromSeconds(60));
     List<ListenableFuture<Void>> clientStartFutures = new ArrayList<>();
+    clients.sort(
+        Comparator.comparingInt(self -> self.getClientType().side.getPositionInConstructionOrder()));
     for (Client client : clients) {
       SettableFuture<Void> future = SettableFuture.create();
       executor.execute(
           () -> {
             try {
               client.start(
-                  startTime, messageTracker, getLatencyTrackerForType(client.getClientType()));
+                  startTime, messageTracker, getLatencyTrackerForType(client.getClientType()),
+                  invariantTracker);
               future.set(null);
             } catch (Throwable t) {
               future.setException(t);

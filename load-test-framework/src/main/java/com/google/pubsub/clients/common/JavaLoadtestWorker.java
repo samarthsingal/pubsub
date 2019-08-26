@@ -158,8 +158,8 @@ public class JavaLoadtestWorker {
 
     log.info("test stopping");
     stopwatch.stop();
-    finished.set(true);
     task.stop();
+    finished.set(true);
     log.info("Load test complete.");
   }
 

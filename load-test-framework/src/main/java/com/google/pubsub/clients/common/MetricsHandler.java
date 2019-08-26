@@ -16,8 +16,13 @@
 package com.google.pubsub.clients.common;
 
 import com.google.pubsub.flic.common.LoadtestProto;
+import com.google.pubsub.flic.common.LoadtestProto.FailedInvariants;
+import com.google.pubsub.flic.common.LoadtestProto.SubscriberOptions.SubscriberProperties;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,18 +32,24 @@ import org.slf4j.LoggerFactory;
  * are recorded using Google's Cloud Monitoring API.
  */
 public class MetricsHandler {
+
   private static final Logger log = LoggerFactory.getLogger(MetricsHandler.class);
   private final ShardedBlockingQueue<MessageAndLatency> messageQueue;
   private final AtomicInteger failures;
+  private Set<SubscriberProperties> failedSubscriberProperties;
   private final boolean includeIds;
+  private LocalDateTime lastUpdated;
 
   public MetricsHandler(boolean includeIds) {
     this.includeIds = includeIds;
     this.messageQueue = new ShardedBlockingQueue<>();
     this.failures = new AtomicInteger(0);
+    this.failedSubscriberProperties = ConcurrentHashMap.newKeySet();
+    this.lastUpdated = LocalDateTime.now();
   }
 
   class MessageAndLatency {
+
     LoadtestProto.MessageIdentifier id;
     Duration latency;
   }
@@ -52,15 +63,27 @@ public class MetricsHandler {
     }
     ml.latency = latency;
     messageQueue.add(ml);
+    this.lastUpdated = LocalDateTime.now();
+  }
+
+  public LocalDateTime getLastUpdated() {
+    return lastUpdated;
   }
 
   public void addFailure() {
     failures.incrementAndGet();
   }
 
+  public void addInvariantFailed(SubscriberProperties subscriber_invariant) {
+    this.failedSubscriberProperties.add(subscriber_invariant);
+  }
+
   public LoadtestProto.CheckResponse check() {
     LoadtestProto.CheckResponse.Builder builder = LoadtestProto.CheckResponse.newBuilder();
     builder.setFailed(failures.getAndSet(0));
+    builder.setViolatedInvariants(
+        FailedInvariants.newBuilder()
+        .addAllFailedSubscriberProperties(this.failedSubscriberProperties).build());
 
     ArrayList<MessageAndLatency> values = new ArrayList<>();
     messageQueue.drainTo(values);

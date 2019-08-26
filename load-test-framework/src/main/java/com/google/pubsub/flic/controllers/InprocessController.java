@@ -23,8 +23,10 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.common.collect.ImmutableList;
 import com.google.pubsub.flic.controllers.resource_controllers.*;
+import com.google.pubsub.flic.controllers.test_parameters.TestParameters;
 import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
+import org.apache.commons.lang3.StringUtils;
 
 /** This is a subclass of {@link Controller} that controls local load tests. */
 public class InprocessController extends ControllerBase {
@@ -52,10 +54,24 @@ public class InprocessController extends ControllerBase {
             credential.createScoped(
                 Collections.singletonList("https://www.googleapis.com/auth/cloud-platform"));
       }
+      String apiRoot = "";
+      boolean enableOrdering = false;
+      if (!clients.isEmpty()) {
+        TestParameters parameters = clients.get(0).getTestParameters();
+        if (!StringUtils.equals(parameters.apiRootUrl(), Pubsub.DEFAULT_ROOT_URL)) {
+          apiRoot = parameters.apiRootUrl();
+        }
+        if (parameters.numOrderingKeysPerPublisherThread() > 0) {
+          enableOrdering = true;
+        }
+      }
+      log.error("Override url is: {}", apiRoot);
       Pubsub pubsub =
           new Pubsub.Builder(transport, jsonFactory, credential)
               .setApplicationName("Cloud Pub/Sub Loadtest Framework")
+              .setRootUrl(StringUtils.defaultIfBlank(apiRoot, Pubsub.DEFAULT_ROOT_URL))
               .build();
+      log.error("Overriding pubsub url to: {}", pubsub.getRootUrl());
       ArrayList<ResourceController> controllers = new ArrayList<>();
       ArrayList<ComputeResourceController> computeControllers = new ArrayList<>();
       clients.forEach(
@@ -71,7 +87,8 @@ public class InprocessController extends ControllerBase {
           });
       controllers.add(
           new PubsubResourceController(
-              projectName, Client.TOPIC, ImmutableList.of(Client.SUBSCRIPTION), executor, pubsub));
+              projectName, Client.TOPIC, ImmutableList.of(Client.SUBSCRIPTION), executor,
+              enableOrdering, pubsub));
       return new InprocessController(clients, executor, controllers, computeControllers);
     } catch (Throwable t) {
       log.error("Unable to initialize GCE: ", t);

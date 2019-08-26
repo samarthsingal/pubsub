@@ -27,6 +27,8 @@ import com.google.pubsub.flic.common.LoadtestProto.KafkaOptions;
 import com.google.pubsub.flic.common.LoadtestProto.PubsubOptions;
 import com.google.pubsub.flic.common.LoadtestProto.StartRequest;
 import com.google.pubsub.flic.common.LoadtestProto.StartResponse;
+import com.google.pubsub.flic.common.LoadtestProto.SubscriberOptions;
+import com.google.pubsub.flic.common.LoadtestProto.SubscriberOptions.SubscriberProperties;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -51,7 +53,7 @@ public class Client {
   public static final String RESOURCE_DIR = "target/classes/gce";
   private static final int DEFAULT_PORT = 5000;
 
-  public static final int PUBLISHER_CPU_SCALING = 5;
+  public static final int PUBLISHER_CPU_SCALING = 1; //TODO (samarthsingal): Revert to 5, alt add param
 
   private final String networkAddress;
   private final ScheduledExecutorService executorService;
@@ -67,6 +69,7 @@ public class Client {
 
   private MessageTracker messageTracker;
   private LatencyTracker latencyTracker;
+  private InvariantTracker invariantTracker;
 
   // StartRequest options
   // General options
@@ -141,10 +144,11 @@ public class Client {
     return runningDuration.getSeconds();
   }
 
-  void start(Timestamp startTime, MessageTracker messageTracker, LatencyTracker latencyTracker)
+  void start(Timestamp startTime, MessageTracker messageTracker, LatencyTracker latencyTracker, InvariantTracker invariantTracker)
       throws Throwable {
     this.messageTracker = messageTracker;
     this.latencyTracker = latencyTracker;
+    this.invariantTracker = invariantTracker;
     // Send a gRPC call to start the server
     log.info("Connecting to " + networkAddress + ":" + port);
     log.info("Starting at " + startTime);
@@ -157,7 +161,8 @@ public class Client {
                 Durations.add(
                     params.getTestParameters().loadtestDuration(),
                     params.getTestParameters().burnInDuration()))
-            .setIncludeIds(params.getTestParameters().publishRatePerSec().isPresent());
+            .setIncludeIds(params.getTestParameters().publishRatePerSec().isPresent())
+            .setNumOrderingKeysPerThread(params.getTestParameters().numOrderingKeysPerPublisherThread());
     if (params.getClientType().isPublisher()) {
       LoadtestProto.PublisherOptions.Builder publisherOptions =
           LoadtestProto.PublisherOptions.newBuilder()
@@ -168,7 +173,7 @@ public class Client {
         publisherOptions.setRate(params.getTestParameters().publishRatePerSec().get());
       }
       requestBuilder.setPublisherOptions(publisherOptions);
-      requestBuilder.setCpuScaling(PUBLISHER_CPU_SCALING);
+      requestBuilder.setCpuScaling(params.getTestParameters().cpuScaling());
     } else {
       SubscriberOptions.Builder subscriberOptions =  SubscriberOptions.newBuilder();
       log.error("Number of ordering keys per publisher: {}", params.getTestParameters().numOrderingKeysPerPublisherThread() > 0);
@@ -285,6 +290,8 @@ public class Client {
                           params.getTestParameters().messageSize())
                       + " MB/s");
             }
+            log.info("Overlapping subscribers: {}", messageTracker.getOverlappingSubscribers());
+            invariantTracker.recordViolatedInvariants(checkResponse.getViolatedInvariants());
           }
 
           @Override

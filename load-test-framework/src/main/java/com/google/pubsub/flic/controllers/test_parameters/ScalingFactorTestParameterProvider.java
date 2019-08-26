@@ -29,11 +29,11 @@ public class ScalingFactorTestParameterProvider implements TestParameterProvider
   @Override
   public List<TestParameters> parameters() {
     return ImmutableList.of(
-        base.toBuilder().setSubscriberCpuScaling(0).build(),
-        base.toBuilder().setSubscriberCpuScaling(1).build(),
-        base.toBuilder().setSubscriberCpuScaling(2).build(),
-        base.toBuilder().setSubscriberCpuScaling(4).build(),
-        base.toBuilder().setSubscriberCpuScaling(8).build(),
-        base.toBuilder().setSubscriberCpuScaling(12).build());
+        base.toBuilder().setCpuScaling(0).build(),
+        base.toBuilder().setCpuScaling(1).build(),
+        base.toBuilder().setCpuScaling(2).build(),
+        base.toBuilder().setCpuScaling(4).build(),
+        base.toBuilder().setCpuScaling(8).build(),
+        base.toBuilder().setCpuScaling(12).build());
   }
 }

@@ -110,6 +110,7 @@ class KafkaPublisherTask extends AbstractPublisher {
   @Override
   public void cleanup() {
     publisher.close();
+    super.cleanup();
   }
 
   private static class KafkaPublisherFactory implements Factory {

@@ -17,6 +17,7 @@
 package com.google.pubsub.flic.controllers;
 
 import com.google.protobuf.Timestamp;
+import com.google.pubsub.flic.common.InvariantTracker;
 import com.google.pubsub.flic.common.LatencyTracker;
 import com.google.pubsub.flic.common.MessageTracker;
 import java.util.Map;
@@ -26,7 +27,7 @@ public interface Controller {
    * Sends a LoadtestFramework.Start RPC to all clients to commence the load test. When this
    * function returns it is guaranteed that all clients have started.
    */
-  void start(MessageTracker messageTracker);
+  void start(MessageTracker messageTracker, InvariantTracker invariantTracker);
 
   /**
    * Shuts down the given environment. When this function returns, each client is guaranteed to be

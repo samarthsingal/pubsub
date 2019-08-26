@@ -43,7 +43,11 @@ public abstract class TestParameters {
 
   public abstract int numSubscriberWorkers();
 
-  public abstract int subscriberCpuScaling();
+  public abstract int cpuScaling();
+
+  public abstract int numOrderingKeysPerPublisherThread();
+
+  public abstract String apiRootUrl();
 
   public abstract Builder toBuilder();
 
@@ -53,11 +57,12 @@ public abstract class TestParameters {
         .setMessageSize(1000)
         .setPublishBatchDuration(Durations.fromMillis(50))
         .setPublishBatchSize(1000)
-        .setBurnInDuration(Durations.fromSeconds(5 * 60))
-        .setLoadtestDuration(Durations.fromSeconds(10 * 60))
+        .setBurnInDuration(Durations.fromSeconds(2*60))
+        .setLoadtestDuration(Durations.fromSeconds(2*60))
         .setNumPublisherWorkers(1)
+        .setNumOrderingKeysPerPublisherThread(0)
         .setNumSubscriberWorkers(1)
-        .setSubscriberCpuScaling(5);
+        .setCpuScaling(5);
   }
 
   @AutoValue.Builder
@@ -80,7 +85,11 @@ public abstract class TestParameters {
 
     abstract Builder setNumSubscriberWorkers(int subscriberWorkers);
 
-    abstract Builder setSubscriberCpuScaling(int subscriberCpuScaling);
+    abstract Builder setCpuScaling(int subscriberCpuScaling);
+
+    abstract Builder setNumOrderingKeysPerPublisherThread(int numOrderingKeysPerPublisher);
+
+    abstract Builder setApiRootUrl(String apiRootUrl);
 
     abstract TestParameters build();
   }

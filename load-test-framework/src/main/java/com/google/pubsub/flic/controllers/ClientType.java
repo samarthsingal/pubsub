@@ -37,8 +37,18 @@ public class ClientType {
   }
 
   public enum MessagingSide {
-    PUBLISHER,
-    SUBSCRIBER
+
+    SUBSCRIBER(0),
+    PUBLISHER(1);
+
+    private final int constructorPosition;
+    private MessagingSide(int position) {
+      this.constructorPosition = position;
+    }
+
+    public int getPositionInConstructionOrder() {
+      return this.constructorPosition;
+    }
   }
 
   public final MessagingType messaging;

@@ -49,7 +49,7 @@ public class CsvOutput implements ResultsOutput {
     int rawCpuScaling =
         result.type.isPublisher()
             ? Client.PUBLISHER_CPU_SCALING
-            : result.testParameters.subscriberCpuScaling();
+            : result.testParameters.cpuScaling();
     String cpuScaling;
     switch (result.type.language) {
       case JAVA:

@@ -28,6 +28,7 @@ import com.google.pubsub.flic.controllers.resource_controllers.PubsubResourceCon
 import com.google.pubsub.flic.controllers.resource_controllers.ResourceController;
 import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
+import org.apache.commons.lang3.StringUtils;
 
 /** This is a subclass of {@link Controller} that controls local load tests. */
 public class LocalController extends ControllerBase {
@@ -52,22 +53,37 @@ public class LocalController extends ControllerBase {
             credential.createScoped(
                 Collections.singletonList("https://www.googleapis.com/auth/cloud-platform"));
       }
+      ArrayList<ResourceController> controllers = new ArrayList<>();
+      ArrayList<ComputeResourceController> computeControllers = new ArrayList<>();
+      String apiRoot = "";
+      boolean enableOrdering = false;
+      if (!clients.isEmpty()) {
+        for (Map.Entry<ClientParams, Integer> paramsToCount: clients.entrySet()) {
+          ClientParams params = paramsToCount.getKey();
+          Integer numWorkers = paramsToCount.getValue();
+          if (!StringUtils.equals(params.getTestParameters().apiRootUrl(), Pubsub.DEFAULT_ROOT_URL)) {
+            apiRoot = params.getTestParameters().apiRootUrl();
+          }
+          if (params.getTestParameters().numOrderingKeysPerPublisherThread() > 0) {
+            enableOrdering = true;
+          }
+          ComputeResourceController computeController =
+              new LocalComputeResourceController(params, numWorkers, executor);
+          controllers.add(computeController);
+          computeControllers.add(computeController);
+        }
+      }
+
       Pubsub pubsub =
           new Pubsub.Builder(transport, jsonFactory, credential)
               .setApplicationName("Cloud Pub/Sub Loadtest Framework")
+              .setRootUrl(StringUtils.defaultIfBlank(apiRoot, Pubsub.DEFAULT_ROOT_URL))
               .build();
-      ArrayList<ResourceController> controllers = new ArrayList<>();
-      ArrayList<ComputeResourceController> computeControllers = new ArrayList<>();
-      clients.forEach(
-          (params, numWorkers) -> {
-            ComputeResourceController computeController =
-                new LocalComputeResourceController(params, numWorkers, executor);
-            controllers.add(computeController);
-            computeControllers.add(computeController);
-          });
+
       controllers.add(
           new PubsubResourceController(
-              projectName, Client.TOPIC, ImmutableList.of(Client.SUBSCRIPTION), executor, pubsub));
+              projectName, Client.TOPIC, ImmutableList.of(Client.SUBSCRIPTION), executor,
+              enableOrdering, pubsub));
       return new LocalController(executor, controllers, computeControllers);
     } catch (Throwable t) {
       log.error("Unable to initialize GCE: ", t);

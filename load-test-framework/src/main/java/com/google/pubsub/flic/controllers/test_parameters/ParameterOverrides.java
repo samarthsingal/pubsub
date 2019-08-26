@@ -72,7 +72,7 @@ public class ParameterOverrides {
       builder.setNumCoresPerWorker(numCores);
     }
     if (scalingFactor != null) {
-      builder.setSubscriberCpuScaling(scalingFactor);
+      builder.setCpuScaling(scalingFactor);
     }
     return builder.build();
   }

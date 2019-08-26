@@ -26,6 +26,8 @@ public class TestParameterProviderConverter implements IStringConverter<TestPara
         return TestParameterProvider.of(StandardParameters.LATENCY);
       case "throughput":
         return TestParameterProvider.of(StandardParameters.THROUGHPUT);
+      case "ordering-throughput":
+        return TestParameterProvider.of(StandardParameters.ORDERING_THROUGHPUT);
       case "core-scaling":
         return new CoreScalingTestParameterProvider(StandardParameters.THROUGHPUT);
       case "message-size":

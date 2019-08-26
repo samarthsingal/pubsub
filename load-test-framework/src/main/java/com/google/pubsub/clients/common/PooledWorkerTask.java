@@ -92,10 +92,11 @@ public abstract class PooledWorkerTask implements LoadtestTask {
     isShutdown.set(true);
     try {
       shutdownFuture.get();
+      executor.shutdown();
+      executor.awaitTermination(30, TimeUnit.SECONDS);
     } catch (ExecutionException | InterruptedException e) {
       log.error("Failed to wait for shutdown: " + e);
     }
-    executor.shutdown();
     cleanup();
   }
 }

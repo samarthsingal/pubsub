@@ -18,7 +18,7 @@ import sys
 if __name__ == '__main__':
     java_args = ['java', '-jar', 'target/driver.jar'] + sys.argv[1:]
 
-    subprocess.call(['mvn', 'package'])
+    subprocess.call(['mvn', 'clean', 'package'])
     subprocess.call(['cp', 'target/driver.jar', 'target/classes/gce/'])
 
     subprocess.call([

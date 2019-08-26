@@ -38,11 +38,19 @@ public abstract class AbstractPublisher extends PooledWorkerTask {
   private static final double STARTING_PER_THREAD_BYTES_PER_SEC = Math.pow(10, 5);
   private final boolean flowControlLimitExists;
   private final double startingPerThreadRate;
+  protected final int numOrderingKeys;
+  protected final boolean enableOrdering;
+  protected final VerifierWriter verifierWriter;
+
+
 
   public AbstractPublisher(
       LoadtestProto.StartRequest request, MetricsHandler handler, int workerCount) {
     super(request, handler, workerCount);
     this.payload = createMessage(request.getPublisherOptions().getMessageSize());
+    this.numOrderingKeys = request.getNumOrderingKeysPerThread();
+    this.enableOrdering = this.numOrderingKeys > 0 ? true : false;
+    this.verifierWriter = new VerifierWriter("order_input.csv");
     if (request.getPublisherOptions().getRate() <= 0) {
       this.perThreadRateUpperBound = Double.MAX_VALUE;
       this.flowControlLimitExists = false;
@@ -65,6 +73,11 @@ public abstract class AbstractPublisher extends PooledWorkerTask {
     byte[] payloadArray = new byte[msgSize];
     Arrays.fill(payloadArray, (byte) 'A');
     return ByteString.copyFrom(payloadArray);
+  }
+
+  @Override
+  protected void cleanup() {
+    this.verifierWriter.shutdown();
   }
 
   @Override
