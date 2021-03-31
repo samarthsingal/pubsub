@@ -28,6 +28,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
 import com.google.pubsub.kafka.common.ConnectorUtils;
@@ -517,5 +518,29 @@ public class CloudPubSubSourceTaskTest {
     PubsubMessage message =
         PubsubMessage.newBuilder().setData(data).putAllAttributes(attributes).build();
     return ReceivedMessage.newBuilder().setAckId(ackId).setMessage(message).build();
+  }
+
+  @Test
+  public void testContinuousPollAndCommit() throws Exception {
+    task.start(props);
+    for (int i = 0; i < 10000; ++i) {
+      ReceivedMessage rm = createReceivedMessage(ACK_ID1 + i,
+          ByteString.copyFromUtf8(String.valueOf(i)), new HashMap<String, String>());
+      PullResponse stubbedPullResponse =
+          PullResponse.newBuilder()
+              .addReceivedMessages(0, rm)
+              .build();
+      when(subscriber.pull(any(PullRequest.class)).get()).thenReturn(stubbedPullResponse);
+      SettableFuture<Empty> ack_response = SettableFuture.create();
+      ack_response.set(null);
+      when(subscriber.ackMessages(any(AcknowledgeRequest.class))).thenReturn(ack_response);
+      List<SourceRecord> result = task.poll();
+      assertEquals(1, result.size());
+      for (SourceRecord record : result) {
+        task.commitRecord(record);
+      }
+      task.commit();
+    }
+    task.stop();
   }
 }
